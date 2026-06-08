@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>テスト攻略ログ V25</title>
+    <link rel="apple-touch-icon" href="IMG_5878.jpeg">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #fdfcf0;
+            --main-pink: #ffafcc;
+            --main-blue: #a2d2ff;
+            --text-color: #5d5d5d;
+            --card-bg: #ffffff;
+            --accent-pink: #ff8fab;
+            --accent-green: #2ecc71;
+        }
+
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: env(safe-area-inset-top) 15px 120px 15px;
+            text-align: center;
+        }
+
+        /* カウントダウンバナー */
+        .countdown-banner {
+            background-color: #ffc8dd;
+            padding: 15px;
+            border-radius: 25px;
+            box-shadow: 0 5px 0 #ffafcc;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        #countdown-display { font-size: 1.4rem; font-weight: bold; color: white; }
+
+        .pop-card {
+            background: var(--card-bg);
+            border-radius: 30px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 0 #eee;
+            border: 3px solid #ffafcc;
+        }
+
+        /* タイマー */
+        #timer-display { font-size: 3.5rem; font-weight: 900; color: var(--accent-pink); margin: 10px 0; font-variant-numeric: tabular-nums; }
+        .btn-preset {
+            background-color: var(--main-blue);
+            color: white; border: none; padding: 10px 15px; border-radius: 15px;
+            font-weight: bold; box-shadow: 0 4px 0 #89c2fa; margin: 0 5px; cursor: pointer;
+        }
+        .subject-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+        .subject-btn {
+            background: white; border: 2px solid #ddd; padding: 10px; border-radius: 20px;
+            font-size: 0.8rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px;
+        }
+        .subject-btn.active { background: var(--main-pink); color: white; border-color: var(--accent-pink); box-shadow: 0 4px 0 var(--accent-pink); }
+
+        /* 時間塗りつぶし表 */
+        .time-grid-container { overflow-x: auto; margin-bottom: 15px; }
+        .time-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; min-width: 400px; }
+        .time-table th, .time-table td { border: 1px solid #ddd; padding: 6px 2px; text-align: center; }
+        .time-table th { background: #f8f8f8; }
+        .cell-fill { width: 16px; height: 16px; margin: 0 auto; border-radius: 2px; border: 1px solid #f0f0f0; }
+
+        /* カレンダー */
+        .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .cal-day {
+            aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+            background: #fff; border-radius: 10px; font-size: 0.8rem; border: 1px solid #ffc8dd; position: relative;
+        }
+        .cal-day.today { border: 3px solid var(--main-blue); }
+        .cal-day.test-period { background-color: #ffe5ec; border-radius: 0; border: 2px solid var(--accent-pink); font-weight: bold; }
+        .cal-day.has-data::after { content: ''; position: absolute; bottom: 3px; width: 6px; height: 6px; background: var(--accent-pink); border-radius: 50%; }
+
+        /* 教科設定 */
+        .setting-subject-item {
+            display: flex; align-items: center; gap: 10px;
+            background: white; padding: 10px; border-radius: 15px;
+            border: 2px solid #ddd; margin-bottom: 10px;
+        }
+        .setting-subject-item input[type=color] {
+            border: none; width: 35px; height: 35px; border-radius: 50%; padding: 0;
+            background: transparent; cursor: pointer;
+        }
+        .setting-subject-item input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+        .setting-subject-item input[type=color]::-webkit-color-swatch { border: none; border-radius: 50%; }
+        .setting-subject-item input[type=text] {
+            flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 8px; font-size: 1rem;
+        }
+        .btn-delete { background: #e2e8f0; color: #64748b; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .add-subject-btn {
+            background: #fff0f5; border: 2px dashed #ffafcc; color: #ff8fab;
+            padding: 15px; border-radius: 15px; width: 100%; font-weight: bold; margin-top: 5px; cursor: pointer;
+        }
+
+        /* 進捗モーダル */
+        #progress-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,175,204,0.98); z-index: 2000; overflow-y: auto; padding: 20px 0 100px 0;
+        }
+        .modal-content { padding: 0 15px; }
+        .task-group { background: white; border-radius: 20px; padding: 15px; margin-bottom: 15px; text-align: left; }
+        .task-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .task-row input[type="text"] { border: 1px solid #ddd; border-radius: 8px; padding: 8px; flex: 1; font-size: 0.9rem; }
+        
+        .check-box-group { display: flex; gap: 4px; }
+        .check-square {
+            width: 25px; height: 25px; border: 2px solid #ffafcc; border-radius: 6px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: 0.2s; background: white;
+        }
+        .check-square.checked { background: var(--main-pink); border-color: var(--accent-pink); }
+        .check-square.checked::after { content: '✓'; color: white; font-weight: bold; }
+
+        .rep-selector { background: #fff; border-radius: 15px; padding: 10px; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 2px solid #ff8fab; }
+
+        /* 詳細レポート用画面 */
+        .full-screen-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-color); z-index: 3000; overflow-y: auto; padding: 20px 15px 100px 15px; box-sizing: border-box;
+        }
+        .report-box {
+            background: white; border: 3px solid #ffafcc; border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 0 #eee;
+        }
+        .test-period-btn {
+            background-color: var(--main-blue); color: white; border: none; padding: 15px; border-radius: 15px;
+            width: 100%; font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; box-shadow: 0 4px 0 #72aee6; cursor: pointer; display: block;
+        }
+        .reflection-item { margin-bottom: 15px; text-align: left; }
+        .reflection-item label { font-weight: bold; font-size: 1rem; display: flex; align-items: center; margin-bottom: 8px; }
+        .reflection-item textarea { 
+            width: 100%; border: 2px solid #ddd; border-radius: 10px; padding: 10px; box-sizing: border-box; 
+            font-family: inherit; font-size: 0.9rem; resize: vertical; min-height: 80px; 
+        }
+        .reflection-item textarea::placeholder { color: #bbb; }
+
+        .btn-main {
+            background-color: var(--main-pink); color: white; border: none;
+            padding: 15px 30px; border-radius: 50px; font-weight: bold;
+            font-size: 1.1rem; box-shadow: 0 6px 0 var(--accent-pink); margin: 10px 0; cursor: pointer;
+        }
+        .fixed-footer { position: fixed; bottom: 20px; left: 0; width: 100%; display: flex; justify-content: center; z-index: 2100; }
+
+        /* 💡 追加：吹き出し（ツールチップ）用のデザイン */
+        .help-btn {
+            display: inline-flex; justify-content: center; align-items: center;
+            width: 20px; height: 20px; border-radius: 50%;
+            background: var(--main-pink); color: white;
+            font-size: 0.8rem; font-weight: bold; cursor: pointer;
+            margin-left: 8px; position: relative; border: none;
+        }
+        .tooltip-text {
+            visibility: hidden; width: 220px;
+            background-color: #5d5d5d; color: #fff;
+            text-align: left; border-radius: 8px; padding: 10px;
+            position: absolute; z-index: 4000;
+            bottom: 135%; left: 50%; transform: translateX(-50%);
+            font-size: 0.8rem; font-weight: normal; line-height: 1.4;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            opacity: 0; transition: opacity 0.2s; white-space: normal;
+        }
+        .tooltip-text::after {
+            content: ""; position: absolute;
+            top: 100%; left: 50%; margin-left: -6px;
+            border-width: 6px; border-style: solid;
+            border-color: #5d5d5d transparent transparent transparent;
+        }
+        .help-btn.active .tooltip-text {
+            visibility: visible; opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="countdown-banner">
+        🚀 次のテストまであと...<br>
+        <div id="countdown-display">タップして日付を設定！</div>
+        <input type="date" id="test-date-picker" onchange="updateTestDate(this.value)" 
+               style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+    </div>
+
+    <div class="pop-card">
+        <div id="timer-display">00:00:00</div>
+        <div id="timer-status" style="font-size: 0.8rem; color: #aaa; margin-bottom: 10px;">停止中</div>
+        <div class="preset-buttons">
+            <button class="btn-preset" onclick="initTimer(15)">15分</button>
+            <button class="btn-preset" onclick="initTimer(30)">30分</button>
+            <button class="btn-preset" onclick="initTimer(60)">1時間</button>
+        </div>
+        <div class="subject-grid" id="subject-buttons"></div>
+        <button class="btn-main" id="start-btn" onclick="toggleTimer()">START!</button>
+    </div>
+
+    <button class="btn-main" style="background:var(--main-blue); box-shadow:0 6px 0 #72aee6;" onclick="openProgress()">🏁 ページ攻略メーターを開く</button>
+
+    <div class="pop-card">
+        <h2 style="font-size:1rem; margin-bottom:10px; display:flex; justify-content:center; align-items:center;">
+            📊 今日の勉強時間（1マス15分）
+            <button class="help-btn" onclick="toggleTooltip(this, event)">?
+                <span class="tooltip-text">一番上のタイマーで勉強時間を計ると、自動的に15分ごとに色が塗られていくよ！</span>
+            </button>
+        </h2>
+        <div class="time-grid-container" id="time-grid-root"></div>
+    </div>
+
+    <div class="pop-card">
+        <h2>🕸 教科バランス</h2>
+        <canvas id="radarChart"></canvas>
+    </div>
+
+    <div class="pop-card">
+        <div class="cal-header">
+            <button class="btn-preset" onclick="changeMonth(-1)">◀</button>
+            <h2 id="cal-month-title" style="margin:0;">2024年 5月</h2>
+            <button class="btn-preset" onclick="changeMonth(1)">▶</button>
+        </div>
+        <div class="calendar-grid" id="cal-grid"></div>
+        
+        <button class="btn-main" style="width:100%; margin-top:20px; background-color: var(--main-pink); box-shadow: 0 6px 0 var(--accent-pink);" onclick="openReportModal()">📊 詳しく見る（詳細分析）</button>
+
+        <div style="margin-top:20px; text-align:left; font-size:0.9rem; border-top:1px solid #eee; padding-top:15px;">
+            <strong style="display:flex; align-items:center;">📝 テスト期間の登録:
+                <button class="help-btn" onclick="toggleTooltip(this, event)">?
+                    <span class="tooltip-text">期間を登録するとカレンダーの背景色が変わり、「詳細分析」でテスト専用のレポートが作れるようになるよ！</span>
+                </button>
+            </strong><br>
+            <input type="text" id="test-period-name" placeholder="例: 第1回定期テスト" style="width:100%; box-sizing:border-box; margin:5px 0; border:1px solid #ddd; padding:8px; border-radius:5px;">
+            <div style="display:flex; gap:5px; margin-bottom: 10px;">
+                <input type="date" id="test-start" style="flex:1; border:1px solid #ddd; border-radius:5px; padding:8px;"> 
+                <span style="line-height:35px;">〜</span>
+                <input type="date" id="test-end" style="flex:1; border:1px solid #ddd; border-radius:5px; padding:8px;">
+            </div>
+            <button class="btn-preset" style="width:100%; margin:0; background:var(--accent-green); box-shadow:0 4px 0 #27ae60;" onclick="addTestPeriod()">期間をカレンダーに登録</button>
+        </div>
+    </div>
+
+    <div class="pop-card" id="settings-card">
+        <h2>🎨 教科設定</h2>
+        <div id="setting-list"></div>
+        <button class="add-subject-btn" onclick="addSub()">＋ 教科を追加</button>
+    </div>
+
+    <div id="progress-modal">
+        <div class="modal-content">
+            <h1 style="color:white; margin-bottom:5px;">🎯 テスト範囲攻略</h1>
+            <p style="color:white; font-size:0.85rem; margin-bottom:20px;">下のボタンで目標回数を決めて、終わったらチェックしよう！</p>
+            <div class="rep-selector">
+                <button class="btn-preset" onclick="setGlobalRep(3)">3回</button>
+                <button class="btn-preset" onclick="setGlobalRep(4)">4回</button>
+                <button class="btn-preset" onclick="setGlobalRep(5)">5回</button>
+            </div>
+            <div id="task-container"></div>
+        </div>
+        <div class="fixed-footer"><button class="btn-main" style="background:#5d5d5d;" onclick="closeProgress()">閉じて保存する</button></div>
+    </div>
+
+    <div id="report-modal" class="full-screen-modal">
+        <h2 style="color:var(--text-color); margin-top:10px;">詳細レポート</h2>
+        <div class="report-box">
+            <h3 style="margin-top:0;">全体シェア (全期間)</h3>
+            <canvas id="globalPieChart"></canvas>
+        </div>
+        <div style="text-align: left; margin-bottom: 10px; font-weight: bold; padding-left:5px;">最近のテスト期間</div>
+        <div id="test-period-list"></div>
+        <button class="btn-main" style="background:#ffafcc; width:100%; margin-top:20px;" onclick="closeReportModal()">戻る</button>
+    </div>
+
+    <div id="test-detail-modal" class="full-screen-modal">
+        <h2 id="detail-test-title" style="color:var(--text-color); margin-top:10px;">テスト詳細</h2>
+        <div class="report-box">
+            <h3 style="margin-top:0;">教科別シェア（期間中）</h3>
+            <canvas id="periodPieChart"></canvas>
+        </div>
+        <div id="detail-subject-list"></div>
+        <button class="btn-main" style="background:var(--main-blue); width:100%; margin-top:20px;" onclick="closeTestDetail()">一覧へ戻る</button>
+    </div>
+
+    <script>
+        let db = JSON.parse(localStorage.getItem('studyLogStable')) || {
+            testDate: "", globalRepGoal: 3, testPeriods: [],
+            subjects: [
+                { id: 'kokugo', name: '文学国語', color: '#e83e8c', icon: '📖' },
+                { id: 'sugaku', name: '数学探究', color: '#00bcd4', icon: '📐' },
+                { id: 'kagaku', name: '科学', color: '#8bc34a', icon: '🔬' },
+                { id: 'seikei', name: '政治経済', color: '#ff5722', icon: '⚖️' },
+                { id: 'nihonshi', name: '日本史探究', color: '#ff9800', icon: '🏯' },
+                { id: 'eikomi', name: '英コミ', color: '#9c27b0', icon: '💬' },
+                { id: 'kateika', name: '家庭科', color: '#2196f3', icon: '🍳' }
+            ],
+            history: {}, tasks: {}
+        };
+        let currentSubject = db.subjects[0].id;
+        let timerSeconds = 0, presetSeconds = 0, timerInterval, isRunning = false, calViewDate = new Date();
+
+        function save() { localStorage.setItem('studyLogStable', JSON.stringify(db)); }
+
+        // 💡 追加：ツールチップを表示/非表示にする機能（他の画面を触ると消えるようにしています）
+        function toggleTooltip(btn, event) {
+            event.stopPropagation();
+            const isActive = btn.classList.contains('active');
+            document.querySelectorAll('.help-btn').forEach(b => b.classList.remove('active'));
+            if (!isActive) btn.classList.add('active');
+        }
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.help-btn').forEach(b => b.classList.remove('active'));
+        });
+
+        function renderSubjectButtons() {
+            const sGrid = document.getElementById('subject-buttons'); sGrid.innerHTML = '';
+            db.subjects.forEach(s => {
+                sGrid.innerHTML += `<button class="subject-btn ${s.id==currentSubject?'active':''}" onclick="selectSubject('${s.id}',this)" style="border-color:${s.color}"><span>${s.icon}</span>${s.name}</button>`;
+            });
+        }
+        function selectSubject(id, el) { currentSubject = id; document.querySelectorAll('.subject-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); }
+        
+        function renderSubjectSettings() {
+            const list = document.getElementById('setting-list'); list.innerHTML = '';
+            db.subjects.forEach((s, i) => {
+                list.innerHTML += `<div class="setting-subject-item" style="border-color:${s.color};">
+                    <input type="color" value="${s.color}" onchange="updateSub(${i}, 'color', this.value)">
+                    <input type="text" value="${s.name}" onchange="updateSub(${i}, 'name', this.value)">
+                    <button class="btn-delete" onclick="removeSub(${i})">削除</button></div>`;
+            });
+        }
+        function updateSub(idx, f, v) { db.subjects[idx][f] = v; save(); renderSubjectButtons(); renderSubjectSettings(); updateCharts(); renderTimeGrid(); }
+        function addSub() { db.subjects.push({ id: 'sub_' + Date.now(), name: '新しい教科', color: '#ffc8dd', icon: '✏️' }); save(); renderSubjectButtons(); renderSubjectSettings(); updateCharts(); renderTimeGrid(); }
+        function removeSub(idx) { if(db.subjects.length > 1) { db.subjects.splice(idx, 1); save(); location.reload(); } }
+
+        function initTimer(min) { if(isRunning) return; presetSeconds = min * 60; timerSeconds = presetSeconds; updateTimerDisplay(); }
+        function updateTimerDisplay() {
+            const m = Math.floor(timerSeconds / 60), s = timerSeconds % 60;
+            document.getElementById('timer-display').innerText = `00:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        }
+        function toggleTimer() {
+            const btn = document.getElementById('start-btn');
+            if(!isRunning) {
+                if(timerSeconds <= 0) return;
+                isRunning = true; btn.innerText = "STOP!";
+                timerInterval = setInterval(() => {
+                    timerSeconds--;
+                    if(timerSeconds < 0) { recordTime(presetSeconds); timerSeconds = presetSeconds; }
+                    updateTimerDisplay();
+                }, 1000);
+            } else {
+                clearInterval(timerInterval); isRunning = false; btn.innerText = "START!";
+                recordTime(presetSeconds - timerSeconds); 
+            }
+        }
+        function recordTime(sec) {
+            const today = new Date().toLocaleDateString();
+            if(!db.history[today]) db.history[today] = {};
+            db.history[today][currentSubject] = (db.history[today][currentSubject]||0) + sec;
+            save(); renderCalendar(); updateCharts(); renderTimeGrid();
+        }
+
+        function renderTimeGrid() {
+            const root = document.getElementById('time-grid-root');
+            const today = new Date().toLocaleDateString();
+            const logs = db.history[today] || {};
+            let html = `<table class="time-table"><tr><th>教科</th>`;
+            for(let i=1; i<=15; i++) html += `<th>${i}</th>`;
+            html += `<th>合計</th></tr>`;
+            db.subjects.forEach(sub => {
+                const blocks = Math.floor((logs[sub.id] || 0) / 900);
+                html += `<tr><td style="font-weight:bold;">${sub.name}</td>`;
+                for(let j=1; j<=15; j++) html += `<td><div class="cell-fill" style="background:${j <= blocks ? sub.color : 'transparent'}"></div></td>`;
+                html += `<td>${Math.floor((logs[sub.id]||0)/60)}分</td></tr>`;
+            });
+            root.innerHTML = html + `</table>`;
+        }
+
+        function openProgress() {
+            const container = document.getElementById('task-container'); 
+            
+            let html = `
+            <div class="task-group" style="background: rgba(255,255,255,0.7); border: 2px dashed #ffafcc; padding: 10px 15px;">
+                <h3 style="font-size: 0.9rem; color: #888; margin-bottom: 5px; margin-top: 0;">💡 使い方（例）</h3>
+                <div class="task-row" style="margin-bottom: 0;">
+                    <input type="text" value="ワーク P10〜15" disabled style="background:#eee; color:#888;">
+                    <div class="check-box-group">`;
+            for(let r=0; r < (db.globalRepGoal||3); r++) {
+                html += `<div class="check-square ${r < 2 ? 'checked' : ''}" style="cursor:default; border-color:#ccc; background:${r<2?'#ccc':'white'}"></div>`;
+            }
+            html += `</div></div></div>`;
+
+            db.subjects.forEach(sub => {
+                html += `<div class="task-group"><h3>${sub.icon} ${sub.name}</h3>`;
+                for(let i=0; i<5; i++) {
+                    const task = db.tasks[sub.id]?.[i] || {name:'', checks:[]};
+                    html += `<div class="task-row"><input type="text" placeholder="範囲を入力" value="${task.name}" onchange="updateTaskName('${sub.id}',${i},this.value)">
+                        <div class="check-box-group">`;
+                    for(let r=0; r < (db.globalRepGoal||3); r++) html += `<div class="check-square ${task.checks?.[r] ? 'checked' : ''}" onclick="toggleCheck('${sub.id}', ${i}, ${r})"></div>`;
+                    html += `</div></div>`;
+                }
+                html += `</div>`;
+            });
+            container.innerHTML = html;
+            document.getElementById('progress-modal').style.display = 'block';
+        }
+        function setGlobalRep(num) { db.globalRepGoal = num; save(); openProgress(); }
+        function updateTaskName(sid, i, val) { if(!db.tasks[sid]) db.tasks[sid] = []; if(!db.tasks[sid][i]) db.tasks[sid][i] = {name:'', checks:[]}; db.tasks[sid][i].name = val; save(); }
+        function toggleCheck(sid, i, r) { if(!db.tasks[sid][i].checks) db.tasks[sid][i].checks = []; db.tasks[sid][i].checks[r] = !db.tasks[sid][i].checks[r]; save(); openProgress(); }
+        function closeProgress() { document.getElementById('progress-modal').style.display = 'none'; }
+
+        function renderCalendar() {
+            const grid = document.getElementById('cal-grid'); grid.innerHTML = '';
+            const y = calViewDate.getFullYear(), m = calViewDate.getMonth();
+            document.getElementById('cal-month-title').innerText = `${y}年 ${m+1}月`;
+            const firstDay = new Date(y, m, 1).getDay(), lastDate = new Date(y, m+1, 0).getDate();
+            for(let i=0; i<firstDay; i++) grid.appendChild(document.createElement('div'));
+            for(let d=1; d<=lastDate; d++) {
+                const dateObj = new Date(y, m, d), dateStr = dateObj.toLocaleDateString(), dayEl = document.createElement('div');
+                dayEl.className = 'cal-day'; dayEl.innerText = d;
+                db.testPeriods.forEach(p => { if(dateObj >= new Date(p.start) && dateObj <= new Date(p.end)) dayEl.classList.add('test-period'); });
+                if(db.history[dateStr]) dayEl.classList.add('has-data');
+                if(dateStr === new Date().toLocaleDateString()) dayEl.classList.add('today');
+                grid.appendChild(dayEl);
+            }
+        }
+        function changeMonth(diff) { calViewDate.setMonth(calViewDate.getMonth() + diff); renderCalendar(); }
+        function addTestPeriod() {
+            const n = document.getElementById('test-period-name').value, s = document.getElementById('test-start').value, e = document.getElementById('test-end').value;
+            if(!n || !s || !e) return;
+            db.testPeriods.push({ name: n, start: s, end: e, reflections: {} }); save(); renderCalendar();
+        }
+
+        let radarChart, globalPieChartInst, periodPieChartInst;
+        function updateCharts() {
+            const today = new Date().toLocaleDateString();
+            radarChart.data.labels = db.subjects.map(s => s.name);
+            radarChart.data.datasets[0].data = db.subjects.map(s => (db.history[today]?.[s.id]||0)/60);
+            radarChart.update();
+        }
+
+        function openReportModal() {
+            const list = document.getElementById('test-period-list'); list.innerHTML = '';
+            db.testPeriods.forEach((t, i) => list.innerHTML += `<button class="test-period-btn" onclick="openTestDetail(${i})">${t.name}</button>`);
+            let totals = {}; db.subjects.forEach(s => totals[s.id] = 0);
+            for(let d in db.history) for(let s in db.history[d]) if(totals[s]!==undefined) totals[s] += db.history[d][s];
+            const labels = [], data = [], colors = [];
+            db.subjects.forEach(s => { if(totals[s.id]>0){ labels.push(s.name); data.push(Math.floor(totals[s.id]/60)); colors.push(s.color); }});
+            if(globalPieChartInst) globalPieChartInst.destroy();
+            globalPieChartInst = new Chart(document.getElementById('globalPieChart'), { type:'pie', data:{labels, datasets:[{data, backgroundColor:colors}]}});
+            document.getElementById('report-modal').style.display = 'block';
+        }
+        function closeReportModal() { document.getElementById('report-modal').style.display = 'none'; }
+        
+        function openTestDetail(idx) {
+            const t = db.testPeriods[idx]; document.getElementById('detail-test-title').innerText = t.name;
+            if(!t.reflections) t.reflections = {};
+            let pTotals = {}; db.subjects.forEach(s => pTotals[s.id] = 0);
+            let cur = new Date(t.start), end = new Date(t.end);
+            while(cur <= end) {
+                let dStr = cur.toLocaleDateString();
+                if(db.history[dStr]) db.subjects.forEach(s => pTotals[s.id] += (db.history[dStr][s.id]||0));
+                cur.setDate(cur.getDate()+1);
+            }
+            const labels = [], data = [], colors = []; let html = '';
+            db.subjects.forEach(s => {
+                const m = Math.floor((pTotals[s.id]||0)/60);
+                if(m > 0){ labels.push(s.name); data.push(m); colors.push(s.color); }
+                
+                const pText = `${s.name}のテストはどうだった？\n反省点や次への目標を書こう！`;
+                
+                // 💡 追加：詳細レポート内の説明用ツールチップ
+                html += `<div class="reflection-item report-box" style="border-color:${s.color};">
+                    <label>${s.name} (${m}分) 
+                        <button class="help-btn" onclick="toggleTooltip(this, event)">?
+                            <span class="tooltip-text">入力した内容は自動で保存されるよ！書き終わったら下の「一覧へ戻る」を押してね。</span>
+                        </button>
+                    </label>
+                    <textarea placeholder="${pText}" onchange="saveReflection(${idx},'${s.id}',this.value)">${t.reflections[s.id]||''}</textarea>
+                </div>`;
+            });
+            document.getElementById('detail-subject-list').innerHTML = html;
+            if(periodPieChartInst) periodPieChartInst.destroy();
+            periodPieChartInst = new Chart(document.getElementById('periodPieChart'), { type:'pie', data:{labels, datasets:[{data, backgroundColor:colors}]}});
+            document.getElementById('report-modal').style.display = 'none'; document.getElementById('test-detail-modal').style.display = 'block';
+        }
+        function saveReflection(i, sid, v) { db.testPeriods[i].reflections[sid] = v; save(); }
+        function closeTestDetail() { document.getElementById('test-detail-modal').style.display = 'none'; document.getElementById('report-modal').style.display = 'block'; }
+        
+        function updateTestDate(v) { db.testDate = v; save(); updateCountdown(); }
+        function updateCountdown() {
+            const d = document.getElementById('countdown-display'); if(!db.testDate)return;
+            const diff = Math.floor((new Date(db.testDate).setHours0,0,0,0) - new Date().setHours(0,0,0,0))/86400000);
+            d.innerText = diff > 0 ? `あと ${diff} 日！` : (diff === 0 ? "🎉 テスト当日！" : "テスト終了！");
+        }
+
+        window.onload = () => {
+            document.getElementById('test-date-picker').value = db.testDate || '';
+            renderSubjectButtons(); renderSubjectSettings(); renderCalendar(); renderTimeGrid();
+            radarChart = new Chart(document.getElementById('radarChart'), {
+                type:'radar', data:{labels:[], datasets:[{label:'分', data:[], backgroundColor:'rgba(255,175,204,0.4)', borderColor:'#ff8fab'}]},
+                            options:{scales:{r:{suggestMin:0}}}
+            });
+            updateCharts(); updateCountdown();
+        };
+    </script>
+</body>
+</html>
